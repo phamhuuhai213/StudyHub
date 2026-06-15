@@ -1,0 +1,45 @@
+spring.application.name=StudyHub
+
+# ===================================
+# DATABASE — Thay bằng thông tin thật
+# ===================================
+spring.datasource.url=jdbc:mysql://localhost:3306/studyhub_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+
+# ===================================
+# FILE UPLOAD
+# ===================================
+file.upload-dir=/var/studyhub-uploads
+
+spring.servlet.multipart.max-file-size=50MB
+spring.servlet.multipart.max-request-size=50MB
+
+# ===================================
+# PRODUCTION
+# ===================================
+spring.thymeleaf.cache=true
+logging.level.org.springframework.web=WARN
+logging.level.com.studyhub=INFO
+spring.jackson.serialization.write-dates-as-timestamps=false
+
+# ===================================
+# EMAIL — Thay bằng email thật
+# ===================================
+# spring.mail.host=smtp.gmail.com
+# spring.mail.port=587
+# spring.mail.username=YOUR_EMAIL@gmail.com
+# spring.mail.password=YOUR_APP_PASSWORD
+# spring.mail.properties.mail.smtp.auth=true
+# spring.mail.properties.mail.smtp.starttls.enable=true
+
+# ===================================
+# AI — Thay bằng API key thật
+# ===================================
+openrouter.api.key=YOUR_OPENROUTER_API_KEY
+openrouter.model=openai/gpt-oss-20b:free

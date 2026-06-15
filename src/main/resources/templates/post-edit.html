@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout.html}">
+<head>
+    <title>Chỉnh sửa bài đăng</title>
+    <link th:href="@{/css/upload.css}" rel="stylesheet" />
+    <style>
+        /* --- POST EDIT PAGE STYLING --- */
+        .post-edit-card {
+            border-radius: 24px !important;
+            border: 1px solid rgba(226, 232, 240, 0.8) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+            overflow: hidden;
+            background: #ffffff;
+            max-width: 860px;
+            margin: 40px auto;
+        }
+        .post-edit-header {
+            background-color: #fbfbfa !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            border-radius: 24px 24px 0 0 !important;
+            padding: 35px 20px !important;
+            text-align: center;
+        }
+        .post-edit-header h2 {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+        .post-edit-header p {
+            color: #64748b !important;
+            margin: 0;
+        }
+        .post-edit-icon-plate {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background: rgba(99, 102, 241, 0.08);
+            border-radius: 50%;
+        }
+        .post-edit-body {
+            padding: 36px 40px;
+        }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            display: block;
+            font-size: 1rem;
+        }
+        .form-control {
+            border-radius: 10px !important;
+            border: 1px solid #d1d5db !important;
+            padding: 12px 16px !important;
+            font-size: 1rem !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .form-control:focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+        }
+        textarea.form-control { min-height: 120px; }
+        .post-edit-body { padding: 40px 48px; }
+        .post-edit-header h2 { font-size: 1.75rem !important; }
+        .section-label {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+            display: block;
+        }
+        /* Buttons */
+        .btn-cancel {
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            border: 1.5px solid #ef4444 !important;
+            color: #ef4444 !important;
+            background: transparent !important;
+            transition: all 0.2s ease !important;
+            padding: 12px 20px !important;
+            text-align: center !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .btn-cancel:hover {
+            background: #fef2f2 !important;
+            color: #dc2626 !important;
+            transform: translateY(-1px) !important;
+            text-decoration: none !important;
+        }
+        .btn-save {
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            border: 1.5px solid #3b82f6 !important;
+            color: #3b82f6 !important;
+            background: transparent !important;
+            transition: all 0.2s ease !important;
+            padding: 12px 20px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .btn-save:hover {
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            transform: translateY(-1px) !important;
+        }
+    </style>
+</head>
+<body>
+
+<div layout:fragment="content">
+
+    <div class="post-edit-card">
+
+        <!-- Header -->
+        <div class="post-edit-header">
+            <div class="post-edit-icon-plate">✏️</div>
+            <h2>Chỉnh sửa bài đăng</h2>
+            <p>Cập nhật thông tin tài liệu và bài viết của bạn</p>
+        </div>
+
+        <div class="post-edit-body">
+
+        <form th:action="@{/posts/edit/{id}(id=${postId})}"
+              th:object="${postDto}"
+              method="POST"
+              enctype="multipart/form-data"
+              id="uploadForm">
+
+            <div class="form-group" th:if="${existingDocuments != null && !existingDocuments.isEmpty()}">
+                <label>📂 Tài liệu hiện có:</label>
+                <ul class="list-group">
+                    <li class="list-group-item d-flex justify-content-between align-items-center"
+                        th:each="doc : ${existingDocuments}">
+                        <span>
+                            📄 <span th:text="${doc.fileName}">file.pdf</span>
+                            <span class="text-muted ms-2" th:text="'(' + ${doc.views} + ' lượt xem)'"></span>
+                        </span>
+                        <span class="badge bg-primary rounded-pill">Đã lưu</span>
+                    </li>
+                </ul>
+                <small class="text-muted mt-1 d-block">
+                    * Nếu bạn tải lên file mới bên dưới, nó sẽ được thêm vào bài đăng này.
+                </small>
+            </div>
+
+            <div class="file-upload-zone" id="dropZone">
+                <div class="file-icon-big">📁</div>
+                <h4>Tải thêm file (nếu muốn)</h4>
+                <p>hoặc <strong>bấm để chọn</strong></p>
+                <input type="file"
+                       id="fileInput"
+                       th:field="*{files}"
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                       style="display: none;"
+                       multiple>
+            </div>
+
+            <div class="file-selected" id="fileSelected">
+                <div class="file-preview-icon" id="fileIcon">📄</div>
+                <div class="file-info">
+                    <h5 id="fileName">file.pdf</h5>
+                    <small id="fileSize">0 MB</small>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="clearFile()" style="margin-left: auto;">
+                    ❌ Hủy file mới
+                </button>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📝 Tiêu đề tài liệu</label>
+                    <input type="text" class="form-control" th:field="*{title}" placeholder="VD: Giáo trình Java">
+                </div>
+                <div class="form-group">
+                    <label>🏷️ Tags</label>
+                    <input type="text" class="form-control" th:field="*{tags}" placeholder="VD: java, spring">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>📄 Mô tả chi tiết / Nội dung bài đăng</label>
+                <textarea class="form-control" th:field="*{description}"></textarea>
+                <input type="hidden" th:field="*{content}" id="hiddenContent">
+            </div>
+
+            <div class="form-group">
+                <label>📂 Chọn danh mục</label>
+                <div class="category-grid">
+                    <div class="category-item" th:each="cat : ${categories}">
+                        <input type="radio"
+                               th:id="${'cat_' + cat.id}"
+                               name="categoryId"
+                               th:value="${cat.id}"
+                               th:checked="${postDto.categoryId == cat.id}">
+                        <label th:for="${'cat_' + cat.id}" class="category-label">
+                            <span class="category-icon" th:text="${cat.icon}">📚</span>
+                            <span class="category-name" th:text="${cat.name}">Category</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>🔒 Quyền riêng tư</label>
+                <label class="privacy-option">
+                    <input type="radio" name="isPublic" value="true" th:checked="${postDto.isPublic == true}">
+                    <div class="privacy-label"><strong>🌐 Công khai</strong><br><small>Mọi người đều có thể xem</small></div>
+                </label>
+                <label class="privacy-option">
+                    <input type="radio" name="isPublic" value="false" th:checked="${postDto.isPublic == false}">
+                    <div class="privacy-label"><strong>🔒 Riêng tư</strong><br><small>Chỉ mình tôi xem</small></div>
+                </label>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-6">
+                    <a th:href="@{/}" class="btn-cancel w-100">Hủy</a>
+                </div>
+                <div class="col-6">
+                    <button type="submit" class="btn-save w-100 fw-bold" id="submitBtn">💾 Lưu thay đổi</button>
+                </div>
+            </div>
+
+        </form>
+
+        </div><!-- end post-edit-body -->
+
+    </div><!-- end post-edit-card -->
+
+</div>
+
+<script layout:fragment="scripts">
+    // (Copy nguyên đoạn script từ upload.html sang đây để xử lý kéo thả file)
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileSelected = document.getElementById('fileSelected');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const fileIcon = document.getElementById('fileIcon');
+    const descInput = document.querySelector('textarea[name="description"]');
+    const contentInput = document.getElementById('hiddenContent');
+
+    // Sync description to content on submit
+    document.getElementById('uploadForm').addEventListener('submit', function() {
+        if(descInput) contentInput.value = descInput.value;
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFiles);
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault(); dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) { fileInput.files = e.dataTransfer.files; handleFiles(); }
+    });
+
+    function handleFiles() {
+        const files = fileInput.files;
+        if (files.length > 0) {
+            const file = files[0];
+            fileName.textContent = file.name;
+            fileSize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            fileSelected.classList.add('show');
+            dropZone.style.display = 'none';
+
+            // Tự động điền tên file (bỏ phần đuôi mở rộng) vào ô Tiêu đề
+            const titleInput = document.querySelector('input[name="title"]');
+            if (titleInput) {
+                const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+                titleInput.value = nameWithoutExt;
+            }
+        }
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        fileSelected.classList.remove('show');
+        dropZone.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

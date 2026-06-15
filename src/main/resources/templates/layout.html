@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <title layout:title-pattern="$CONTENT_TITLE - StudyHub">StudyHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Plus Jakarta Sans - Modern premium typeface -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link th:href="@{/css/chat.css}" rel="stylesheet" />
+    <link th:href="@{/css/feed.css}" rel="stylesheet" />
+    <link th:href="@{/css/documents.css}" rel="stylesheet" />
+    <link th:href="@{/css/auth.css}" rel="stylesheet" />
+    <link th:href="@{/css/upload.css}" rel="stylesheet" />
+
+    <style>
+        /* --- ĐỊNH NGHĨA BIẾN MÀU SẮC & PHÔNG CHỮ HIỆN ĐẠI --- */
+        :root {
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            --background-color: #f8fafc;
+            --card-shadow: 0 4px 20px -2px rgba(102, 126, 234, 0.08), 0 2px 8px -1px rgba(102, 126, 234, 0.04);
+            --hover-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.1), 0 10px 10px -5px rgba(99, 102, 241, 0.04);
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: #1e293b;
+        }
+
+        /* --- TÙY BIẾN CÁC NÚT ĐỂ TRÔNG XỊN HƠN --- */
+        .btn-primary {
+            background: var(--primary-gradient) !important;
+            border: none !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
+            font-weight: 600 !important;
+            padding: 8px 18px !important;
+            border-radius: 12px !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        .btn-outline-primary {
+            border: 1.5px solid var(--primary-color) !important;
+            color: var(--primary-color) !important;
+            font-weight: 600 !important;
+            padding: 7.5px 17px !important;
+            border-radius: 12px !important;
+            background: transparent !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15) !important;
+        }
+
+        .btn-outline-blue {
+            border: 1.5px solid #3b82f6 !important;
+            color: #3b82f6 !important;
+            font-weight: 600 !important;
+            background: transparent !important;
+            transition: all 0.2s ease !important;
+            border-radius: 20px !important;
+            padding: 6px 16px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .btn-outline-blue:hover {
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            transform: translateY(-1px) !important;
+        }
+
+        .btn-download-green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            border: none !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+            color: white !important;
+            font-weight: 600 !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .btn-download-green:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35) !important;
+            transform: translateY(-1px) !important;
+            color: white !important;
+        }
+
+        /* CSS cho nút Like/Comment phong cách hiện đại */
+        .post-action-btn {
+            background: none !important;
+            border: none !important;
+            color: #64748b !important;
+            font-weight: 600 !important;
+            font-size: 0.95rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            transition: all 0.2s ease !important;
+            padding: 0 !important;
+            cursor: pointer !important;
+            text-decoration: none !important;
+        }
+        .post-action-btn:hover {
+            color: #3b82f6 !important;
+            transform: scale(1.08) !important;
+            text-decoration: none !important;
+        }
+
+        /* --- STYLE CHO DROPDOWN BÀI VIẾT HIỆN ĐẠI --- */
+        .post-dropdown-menu {
+            border-radius: 12px !important;
+            padding: 6px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid #e2e8f0 !important;
+            min-width: 130px !important;
+        }
+        .post-dropdown-item {
+            border-radius: 8px !important;
+            font-weight: 500 !important;
+            font-size: 0.9rem !important;
+            padding: 8px 12px !important;
+            color: #475569 !important;
+            transition: all 0.15s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            background: transparent !important;
+            border: none !important;
+            width: 100% !important;
+            text-align: left !important;
+            text-decoration: none !important;
+        }
+        .post-dropdown-item:hover {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+            text-decoration: none !important;
+        }
+        .post-dropdown-item.text-danger:hover {
+            background-color: #fef2f2 !important;
+            color: #dc2626 !important;
+            text-decoration: none !important;
+        }
+        .post-dropdown-trigger {
+            width: 32px !important;
+            height: 32px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            transition: all 0.2s ease !important;
+            color: #64748b !important;
+            text-decoration: none !important;
+            background: none !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+        .post-dropdown-trigger:hover {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+
+        /* --- STYLE CHO SEGMENTED CONTROL / PREVIEW TAB GROUP --- */
+        .preview-tab-group {
+            background-color: #f1f5f9 !important;
+            padding: 3px !important;
+            border-radius: 9999px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            border: none !important;
+            margin-right: 5px !important;
+        }
+        .preview-tab-group .btn {
+            border-radius: 9999px !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            padding: 6px 16px !important;
+            border: none !important;
+            box-shadow: none !important;
+            transition: all 0.2s ease !important;
+            margin: 0 !important;
+        }
+        .preview-tab-group .btn-primary {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+        }
+        .preview-tab-group .btn-outline-primary {
+            background: transparent !important;
+            color: #64748b !important;
+        }
+        .preview-tab-group .btn-outline-primary:hover {
+            color: #0f172a !important;
+        }
+
+        /* --- CSS CHO NAVBAR --- */
+        .navbar-custom {
+            background-color: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            padding: 0 10px;
+            height: 65px;
+            transition: all 0.3s ease;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            margin-right: auto;
+            min-width: 120px;
+        }
+
+        .brand-logo-icon {
+            font-size: 2.2rem;
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .brand-text {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .center-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            height: 100%;
+            gap: 12px;
+        }
+
+        .nav-icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 54px;
+            height: 44px;
+            border-radius: 12px;
+            color: #64748b;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .nav-icon-btn:hover {
+            background-color: #f1f5f9;
+            color: var(--primary-color);
+        }
+
+        .nav-icon-btn.active {
+            color: var(--primary-color);
+            background-color: rgba(99, 102, 241, 0.08);
+            border-bottom: none;
+        }
+
+        .nav-icon-svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .icon-upload {
+            width: 28px;
+            height: 28px;
+        }
+
+        .right-section {
+            margin-left: auto;
+            min-width: 120px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #334155;
+            font-weight: 600;
+            background-color: #f1f5f9;
+            transition: all 0.2s ease;
+        }
+        .user-menu-btn:hover {
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+
+        #noti-badge {
+            font-size: 0.65rem;
+            padding: 0.35em 0.5em;
+            border: 2px solid white;
+        }
+
+        /* Dấu chấm đỏ cho icon Tin nhắn trên navbar */
+        #nav-chat-badge {
+            position: absolute;
+            top: 6px;
+            right: 18px;
+            width: 10px;
+            height: 10px;
+            background: #ff3b30;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            display: none;
+            box-shadow: 0 0 2px rgba(255, 59, 48, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .nav-icon-btn { width: 50px; }
+            .brand-section { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<input type="hidden" id="current-username-global" th:if="${currentUser != null}" th:value="${currentUser.username}" />
+
+<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+    <div class="container-fluid d-flex align-items-center justify-content-between p-0">
+
+        <a class="brand-section ms-3" th:href="@{/}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="brand-logo-icon" viewBox="0 0 16 16">
+                <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
+            </svg>
+            <span class="brand-text">StudyHub</span>
+        </a>
+
+        <div class="center-nav">
+            <a class="nav-icon-btn" th:href="@{/}" title="Bảng tin" sec:authorize="isAuthenticated()">
+                <svg class="nav-icon-svg" viewBox="0 0 16 16">
+                    <path d="M6.5 14.5v-3.505c0-.245.25-.495.5-.495h2c.25 0 .5.25.5.5v3.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5z"/>
+                </svg>
+            </a>
+
+            <a class="nav-icon-btn" th:href="@{/documents}" title="Tài liệu" sec:authorize="isAuthenticated()">
+                <svg class="nav-icon-svg" viewBox="0 0 16 16">
+                    <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1zM4.5 9a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1h-7zM4 10.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm.5 2.5a.5.5 0 0 1 0-1h4a.5.5 0 0 1 0 1h-4z"/>
+                </svg>
+            </a>
+
+            <a class="nav-icon-btn" th:href="@{/upload}" title="Đăng tải" sec:authorize="isAuthenticated()">
+                <svg class="nav-icon-svg icon-upload" viewBox="0 0 16 16">
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3z"/>
+                </svg>
+            </a>
+
+            <a class="nav-icon-btn" th:href="@{/profile/{username}(username=${currentUser.username})}" title="Trang cá nhân" sec:authorize="isAuthenticated()">
+                <svg class="nav-icon-svg" viewBox="0 0 16 16">
+                    <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3Zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                </svg>
+            </a>
+
+            <a class="nav-icon-btn" th:href="@{/chat}" title="Tin nhắn" sec:authorize="isAuthenticated()">
+                <svg class="nav-icon-svg" viewBox="0 0 16 16">
+                    <path d="M16 8c0 3.866-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.584.296-1.925.864-4.181 1.234-.2.032-.352-.176-.273-.362.354-.836.674-1.95.77-2.966C.744 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7zM5 8a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                </svg>
+                <span id="nav-chat-badge"></span>
+            </a>
+
+            <a class="nav-icon-btn text-danger" th:href="@{/admin/users}" title="Quản trị" sec:authorize="hasRole('ADMIN')">
+                <svg class="nav-icon-svg" viewBox="0 0 16 16">
+                    <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                </svg>
+            </a>
+        </div>
+
+        <div class="right-section me-3">
+            <ul class="navbar-nav d-flex flex-row" sec:authorize="isAnonymous()">
+                <li class="nav-item me-2">
+                    <a class="btn btn-outline-primary btn-sm" th:href="@{/login}">Đăng nhập</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-primary btn-sm" th:href="@{/register}">Đăng ký</a>
+                </li>
+            </ul>
+
+            <div class="d-flex align-items-center" sec:authorize="isAuthenticated()">
+
+                <div class="dropdown me-2">
+                    <a class="nav-icon-btn position-relative" href="#" id="notiDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false" onclick="loadNotifications()"
+                       style="width: 40px; height: 40px; background: #f0f2f5; border-radius: 50%;">
+
+                        <i class="fa-solid fa-bell" style="font-size: 20px;"></i>
+
+                        <span id="noti-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                              style="display: none;">0</span>
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-0" aria-labelledby="notiDropdown"
+                        style="width: 350px; max-height: 85vh; overflow-y: auto; border-radius: 10px;">
+
+                        <li class="p-2 border-bottom bg-white sticky-top d-flex justify-content-between align-items-center">
+                            <span class="fw-bold ms-2">Thông báo</span>
+                            <button onclick="showDeleteAllNotiModal(event)" class="btn btn-sm btn-link text-danger text-decoration-none" style="font-size: 0.8rem;">
+                                <i class="fa-solid fa-trash-can"></i> Xóa tất cả
+                            </button>
+                        </li>
+
+                        <div id="noti-list">
+                            <li class="text-center text-muted p-3">Đang tải...</li>
+                        </div>
+                    </ul>
+                </div>
+
+                <div class="dropdown">
+                    <a class="user-menu-btn" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1px solid #ddd; background: #eee; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                            <img th:if="${currentUser != null && currentUser.avatarUrl != null}"
+                                 th:src="@{/view-file/{fileName}(fileName=${currentUser.avatarUrl})}"
+                                 style="width: 100%; height: 100%; object-fit: cover;">
+                            <span th:if="${currentUser == null || currentUser.avatarUrl == null}"
+                                  style="font-weight: bold; color: #667eea; font-size: 14px;"
+                                  th:text="${currentUser != null ? #strings.substring(currentUser.name, 0, 1) : '?'}">?</span>
+                        </div>
+                        <span th:text="${currentUser != null ? currentUser.name : 'User'}" class="d-none d-xl-block">User</span>
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 10px; margin-top: 10px;">
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center"
+                               th:href="@{/profile/{username}(username=${currentUser.username})}">
+                                <i class="fa-solid fa-user me-2"></i> Trang cá nhân
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center" th:href="@{/profile/edit}">
+                                <i class="fa-solid fa-gear me-2"></i> Cài đặt & Avatar
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form th:action="@{/logout}" method="POST" class="m-0">
+                                <button type="submit" class="dropdown-item py-2 text-danger d-flex align-items-center">
+                                    <i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="container mt-4">
+    <div layout:fragment="content">
+    </div>
+</main>
+
+<div layout:fragment="modals">
+</div>
+
+<div class="modal fade" id="deleteNotificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-body text-center pt-4 pb-0">
+                <div style="width: 60px; height: 60px; background-color: #fee2e2; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 15px auto;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">Xóa hết thông báo?</h5>
+                <p class="text-muted small mb-3">
+                    Bạn có chắc chắn muốn xóa toàn bộ thông báo không?
+                </p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4 pt-0 gap-2">
+                <button type="button" class="btn btn-light fw-bold px-3" data-bs-dismiss="modal" style="border-radius: 12px; min-width: 80px;">Hủy</button>
+                <button type="button" class="btn btn-danger fw-bold px-3" id="btn-confirm-delete-notification" style="border-radius: 12px; min-width: 80px; background-color: #dc2626; border: none;">Xóa hết</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+<script type="module" src="/js/main.js"></script>
+
+<script th:src="@{/js/video.js}"></script>
+
+<script>
+    let stompClientGlobal = null;
+
+    // Kết nối WebSocket toàn cục để lắng nghe thông báo
+    function connectGlobal() {
+        const userElement = document.getElementById('current-username-global');
+        if (!userElement) return;
+
+        const socket = new SockJS('/ws');
+        stompClientGlobal = Stomp.over(socket);
+        stompClientGlobal.debug = null;
+
+        stompClientGlobal.connect({}, function (frame) {
+            console.log('Connected Global WS for Notifications');
+
+            stompClientGlobal.subscribe('/user/queue/notifications', function (payload) {
+                const noti = JSON.parse(payload.body);
+                showNotificationPopup(noti);
+                updateUnreadCount(1);
+            });
+
+            // Lắng nghe tin nhắn mới (để hiện dấu chấm đỏ ở icon Tin nhắn)
+            stompClientGlobal.subscribe('/user/queue/chat', function (payload) {
+                // Nếu đang ở trang /chat thì sidebar đã xử lý dấu chấm đỏ.
+                // Tránh hiện badge trên navbar khi user đang trực tiếp xem chat.
+                if (window.location.pathname && window.location.pathname.startsWith('/chat')) {
+                    return;
+                }
+                try {
+                    // payload là ChatDTOs.MessageDto
+                    JSON.parse(payload.body);
+                    showChatBadge(true);
+                } catch (e) {
+                    // nếu payload không phải JSON vẫn cứ hiện badge
+                    showChatBadge(true);
+                }
+            });
+
+            fetchUnreadCount();
+
+        }, function (error) {
+            console.log('WS Error: ' + error);
+        });
+    }
+
+    function showChatBadge(isShow) {
+        const badge = document.getElementById('nav-chat-badge');
+        if (!badge) return;
+        badge.style.display = isShow ? 'block' : 'none';
+    }
+
+    // Hàm hiển thị Toast nhỏ ở góc màn hình
+    function showNotificationPopup(noti) {
+        const toastHtml = `
+            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+              <div class="toast show shadow" role="alert" aria-live="assertive" aria-atomic="true" style="border-radius: 10px;">
+                <div class="toast-header">
+                  <strong class="me-auto text-primary"><i class="fa-solid fa-bell"></i> Thông báo mới</strong>
+                  <small>Vừa xong</small>
+                  <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body" style="background: #fff;">
+                  ${noti.content}
+                </div>
+              </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+
+        setTimeout(() => {
+            const toast = document.querySelector('.toast.show');
+            if(toast) toast.remove();
+        }, 4000);
+    }
+
+    function updateUnreadCount(increment) {
+        const badge = document.getElementById('noti-badge');
+        if (!badge) return;
+
+        let current = parseInt(badge.innerText) || 0;
+
+        if (increment === 'reset') {
+            current = 0;
+        } else {
+            current += increment;
+        }
+
+        badge.innerText = current;
+        if (current > 0) {
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    async function fetchUnreadCount() {
+        try {
+            const res = await fetch('/api/notifications/unread-count');
+            if (res.ok) {
+                const count = await res.json();
+                const badge = document.getElementById('noti-badge');
+                if(badge) {
+                    badge.innerText = count;
+                    badge.style.display = (count > 0) ? 'block' : 'none';
+                }
+            }
+        } catch (e) {
+            console.error("Lỗi tải số lượng thông báo:", e);
+        }
+    }
+
+    // === HÀM HIỂN THỊ MODAL XÓA ===
+    function showDeleteAllNotiModal(event) {
+        event.stopPropagation(); // Ngăn chặn đóng dropdown
+        event.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('deleteNotificationModal'));
+        modal.show();
+    }
+
+    // === ĐĂNG KÝ SỰ KIỆN CHO NÚT "XÓA HẾT" TRONG MODAL ===
+    document.addEventListener('DOMContentLoaded', () => {
+        const confirmBtn = document.getElementById('btn-confirm-delete-notification');
+        if(confirmBtn) {
+            confirmBtn.addEventListener('click', async () => {
+                try {
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    const res = await fetch('/api/notifications/delete-all', {
+                        method: 'DELETE',
+                        headers: { [csrfHeader]: csrfToken }
+                    });
+
+                    if (res.ok) {
+                        document.getElementById('noti-list').innerHTML = '<li class="text-center text-muted p-3">Không có thông báo mới</li>';
+                        updateUnreadCount('reset');
+                        // Đóng modal
+                        const modalEl = document.getElementById('deleteNotificationModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if(modal) modal.hide();
+                    } else {
+                        alert("Lỗi khi xóa thông báo");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        }
+        connectGlobal();
+
+        // Khi click vào icon Tin nhắn thì ẩn badge (coi như đã xem)
+        const chatNavBtn = document.querySelector('a.nav-icon-btn[title="Tin nhắn"]');
+        if (chatNavBtn) {
+            chatNavBtn.addEventListener('click', () => showChatBadge(false));
+        }
+    });
+
+    async function loadNotifications() {
+        const list = document.getElementById('noti-list');
+        updateUnreadCount('reset');
+        fetch('/api/notifications/read-all', { method: 'POST' });
+
+        list.innerHTML = '<li class="text-center text-muted p-3">Đang tải...</li>';
+
+        try {
+            const res = await fetch('/api/notifications');
+            if(!res.ok) throw new Error("Failed");
+            const data = await res.json();
+
+            list.innerHTML = '';
+            if (data.length === 0) {
+                list.innerHTML = '<li class="text-center text-muted p-3">Không có thông báo mới</li>';
+                return;
+            }
+
+            data.forEach(n => {
+                const time = new Date(n.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+                const unreadClass = !n.read ? 'bg-light fw-bold' : '';
+
+                // Avatar người gửi
+                const avatarImg = n.senderAvatar
+                    ? `<img src="/view-file/${n.senderAvatar}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">`
+                    : `<div style="width:40px; height:40px; border-radius:50%; background:#667eea; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold;">${n.senderName ? n.senderName.charAt(0) : '?'}</div>`;
+
+                // Link chuyển hướng
+                const linkUrl = n.link || '#';
+
+                const item = `
+                    <li>
+                        <a class="dropdown-item p-3 border-bottom ${unreadClass}" href="${linkUrl}" style="white-space: normal;">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    ${avatarImg}
+                                </div>
+                                <div>
+                                    <span class="d-block text-dark" style="font-size: 0.9rem;">${n.content}</span>
+                                    <small class="text-primary" style="font-size: 0.75rem;">${time}</small>
+                                </div>
+                            </div>
+                        </a>
+                    </li>
+                `;
+                list.insertAdjacentHTML('beforeend', item);
+            });
+
+        } catch (e) {
+            list.innerHTML = '<li class="text-center text-danger p-3">Lỗi tải thông báo</li>';
+        }
+    }
+</script>
+
+<th:block layout:fragment="scripts"></th:block>
+
+</body>
+</html>

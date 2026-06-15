@@ -1,0 +1,32 @@
+# MAVEN
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.class
+
+# BẢO MẬT - KHÔNG COMMIT LÊN GITHUB
+# File config chứa password/API key thật
+src/main/resources/application.properties
+
+# Giữ lại file template (không có thông tin thật)
+!src/main/resources/application.properties.template
+
+# FILE UPLOAD CỦA NGƯỜI DÙNG
+studyhub-uploads/
+uploads/
+
+# LOG
+*.log
+logs/
+
+# HỆ ĐIỀU HÀNH
+.DS_Store
+Thumbs.db

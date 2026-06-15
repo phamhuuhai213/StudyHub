@@ -1,0 +1,71 @@
+package com.studyhub.StudyHub.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+
+@Setter
+@Getter
+@Entity
+@Table(name = "documents")
+public class Document {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+
+    @Column(length = 255)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(length = 500)
+    private String tags;
+
+    @Column(nullable = false)
+    private Long fileSize = 0L;
+
+    @Column(nullable = false)
+    private Integer views = 0;
+
+    @Column(nullable = false)
+    private Integer downloads = 0;
+
+    @Column(nullable = false)
+    private Boolean isPublic = true;
+
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime uploadedAt; // Thời gian upload
+
+
+
+    @Column(nullable = false)
+    private String fileName;
+
+    @Column(nullable = false)
+    private String fileType;
+
+    @Column(nullable = false, unique = true)
+    private String storagePath;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id")
+    private Post post;
+
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user; // Người upload
+
+}

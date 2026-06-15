@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{layout.html}">
+<head>
+    <title th:text="${pageTitle}">Trang chủ</title>
+    <style>
+        /* CSS cho nút Xem trước */
+        .btn-preview {
+            border-radius: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+            border: 1px solid #ddd;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            font-size: 0.9rem;
+        }
+        .btn-preview:hover {
+            background-color: #e4e6eb;
+            color: #000;
+        }
+        .preview-iframe { width: 100%; height: 75vh; border: none; border-radius: 8px; background-color: #f8f9fa; }
+        .preview-image { max-width: 100%; max-height: 75vh; display: block; margin: 0 auto; border-radius: 8px; }
+        /* Custom markdown styling for AI summary */
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            color: #2b3a4a;
+            margin-top: 1.2rem;
+            margin-bottom: 0.6rem;
+            font-weight: 700;
+        }
+        .markdown-content p {
+            margin-bottom: 0.8rem;
+            color: #333;
+            line-height: 1.7;
+        }
+        .markdown-content ul, .markdown-content ol {
+            padding-left: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        .markdown-content li {
+            margin-bottom: 0.4rem;
+            color: #444;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            color: #666;
+            font-style: italic;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+
+<div layout:fragment="content">
+    <div class="row justify-content-center">
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="card sidebar-left">
+                <div class="card-body">
+                    <h5 class="card-title">Menu</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a th:href="@{/profile/edit}" class="text-decoration-none text-dark">⚙️ Cài đặt tài khoản</a></li>
+                        <li class="list-group-item"><a th:href="@{/documents}" class="text-decoration-none text-dark">📂 Kho tài liệu</a></li>
+                        <li class="list-group-item"><a th:href="@{/chat}" class="text-decoration-none text-dark">💬 Tin nhắn</a></li>
+                        <li class="list-group-item"><a th:href="@{/friends}" class="text-decoration-none text-dark">👥 Lời mời kết bạn</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-md-8">
+            <div class="card mb-4 shadow-sm" style="border-radius: 15px; border: none;">
+                <div class="card-body p-3">
+                    <form th:action="@{/}" method="GET" class="d-flex align-items-center w-100">
+                        <div class="input-group flex-grow-1">
+                            <span class="input-group-text bg-white border-end-0" style="border-radius: 20px 0 0 20px; border: 1px solid #e0e0e0; height: 38px;">🔍</span>
+                            <input type="text" name="keyword" class="form-control border-start-0" placeholder="Tìm kiếm..." th:value="${keyword}" style="border-radius: 0 20px 20px 0; border: 1px solid #e0e0e0; box-shadow: none; height: 38px;">
+                        </div>
+                        <button type="submit" class="btn btn-outline-blue ms-2" style="border-radius: 20px; height: 38px; padding: 0 20px; flex-shrink: 0;">Tìm</button>
+                        <a th:if="${keyword != null && !keyword.isEmpty()}" th:href="@{/}" class="btn btn-light ms-2" style="border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Xóa tìm kiếm">✖</a>
+                    </form>
+                </div>
+            </div>
+
+            <div th:if="${successMessage}" class="alert alert-success" role="alert"><span th:text="${successMessage}"></span></div>
+            <div th:if="${errorMessage}" class="alert alert-danger" role="alert"><span th:text="${errorMessage}"></span></div>
+
+            <div class="card mb-3" th:each="post : ${posts}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center">
+                            <a th:href="@{/profile/{username}(username=${post.user.username})}">
+                                <div class="post-author-avatar">
+                                    <img th:if="${post.user.avatarUrl != null}" th:src="@{/view-file/{fileName}(fileName=${post.user.avatarUrl})}" alt="Avatar">
+                                    <span th:if="${post.user.avatarUrl == null}" th:text="${#strings.substring(post.user.name, 0, 1)}">A</span>
+                                </div>
+                            </a>
+                            <div class="ms-2">
+                                <a class="fw-bold text-decoration-none text-dark" th:href="@{/profile/{username}(username=${post.user.username})}" th:text="${post.user.name}">Name</a>
+                                <div class="text-muted small">
+                                    <span th:text="${#temporals.format(post.createdAt, 'HH:mm ''ngày'' dd/MM/yyyy')}">Date</span>
+                                    <span th:if="${post.isPublic}" title="Công khai">🌐</span><span th:if="${!post.isPublic}" title="Riêng tư">🔒</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dropdown" th:if="${currentUserId == post.user.id}">
+                            <button class="post-dropdown-trigger" type="button" data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-ellipsis-vertical fs-5"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end post-dropdown-menu">
+                                <li>
+                                    <a class="post-dropdown-item" th:href="@{/posts/edit/{id}(id=${post.id})}">
+                                        ✏️ Sửa
+                                    </a>
+                                </li>
+                                <li>
+                                    <form th:action="@{/posts/delete/{id}(id=${post.id})}" method="POST" onsubmit="return confirm('Xóa bài viết này?');">
+                                        <button type="submit" class="post-dropdown-item text-danger">
+                                            🗑️ Xóa
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p class="card-text" th:if="${post.content}" th:text="${post.content}"></p>
+
+                    <div th:if="${!post.documents.isEmpty()}" class="mt-3">
+                        <div class="list-group">
+                            <div th:each="doc : ${post.documents}" class="list-group-item list-group-item-action flex-column align-items-start mb-2 border rounded p-3">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">📄 <span th:text="${doc.title ?: doc.fileName}">Title</span></h5>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn-preview"
+                                                th:data-id="${doc.id}"
+                                                th:data-path="${doc.storagePath}"
+                                                th:data-name="${doc.fileName}"
+                                                th:data-title="${doc.title}"
+                                                onclick="previewFile(this)">👁️ Xem</button>
+                                         <a th:href="@{/download/{fileName}(fileName=${doc.storagePath})}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải</a>
+                                    </div>
+                                </div>
+                                <p class="mb-1" th:if="${doc.description != post.content}" th:text="${doc.description}"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex gap-4 align-items-center py-1">
+                        <form th:action="@{/posts/{postId}/like(postId=${post.id})}" method="POST" class="d-inline">
+                            <button type="submit" class="post-action-btn"
+                                    th:with="liked = ${#lists.contains(post.reactions.![user.id], currentUserId)}"
+                                    th:style="${liked} ? 'color: #3b82f6 !important;' : ''">
+                                <i th:class="${liked} ? 'fa-solid fa-thumbs-up me-2' : 'fa-regular fa-thumbs-up me-2'" style="font-size: 1.25rem;"></i>
+                                <span th:text="${post.reactions.size()}">0</span>
+                            </button>
+                        </form>
+                        <a href="javascript:void(0)" class="post-action-btn"
+                           th:onclick="'const inp = this.closest(\'.card-body\').querySelector(\'input[placeholder*=\\\'bình luận\\\']\'); if(inp) inp.focus();'">
+                            <i class="fa-regular fa-comment me-2" style="font-size: 1.25rem;"></i>
+                            <span th:text="${post.comments.size()}">0</span>
+                        </a>
+                    </div>
+                    <hr>
+
+                    <div class="comments-wrapper">
+                        <div th:id="'comments-list-' + ${post.id}">
+                            <div th:each="comment, iter : ${post.comments}"
+                                 th:id="'comment-' + ${comment.id}"
+                                 class="mb-2 d-flex group-comment-item"
+                                 th:classappend="${iter.index >= 3} ? 'd-none hidden-comment-' + ${post.id} : ''">
+
+                                <div class="post-author-avatar me-2" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                    <img th:if="${comment.user.avatarUrl != null}" th:src="@{/view-file/{fileName}(fileName=${comment.user.avatarUrl})}" alt="Avatar">
+                                    <span th:if="${comment.user.avatarUrl == null}" th:text="${#strings.substring(comment.user.name, 0, 1)}"></span>
+                                </div>
+                                <div class="ms-2 position-relative" style="background-color: #f0f2f5; border-radius: 15px; padding: 8px 12px; flex-grow: 1;">
+                                    <strong><a th:href="@{/profile/{username}(username=${comment.user.username})}" th:text="${comment.user.name}" style="text-decoration: none; color: inherit;">Name</a></strong>
+                                    <p th:text="${comment.content}" class="mb-0">Nội dung</p>
+                                    <small class="text-muted" th:text="${#temporals.format(comment.createdAt, 'HH:mm dd/MM/yyyy')}"></small>
+                                    <button th:if="${currentUser != null && (comment.user.id == currentUser.id || post.user.id == currentUser.id)}" class="btn btn-sm text-danger position-absolute top-0 end-0 p-1 delete-comment-btn" th:attr="data-id=${comment.id}" style="font-size: 12px; margin-right: 5px;">✖</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div th:if="${post.comments.size() > 3}" class="text-center mt-2 view-more-container">
+                            <a href="javascript:void(0)" class="text-decoration-none small fw-bold text-secondary" th:id="'btn-more-' + ${post.id}" th:onclick="'toggleComments(' + ${post.id} + ', true)'">▼ Xem thêm các bình luận cũ hơn... (<span th:text="${post.comments.size() - 3}"></span>)</a>
+                            <a href="javascript:void(0)" class="text-decoration-none small fw-bold text-secondary" th:id="'btn-less-' + ${post.id}" style="display: none;" th:onclick="'toggleComments(' + ${post.id} + ', false)'">▲ Thu gọn bình luận</a>
+                        </div>
+                    </div>
+                    <div class="mt-3" sec:authorize="isAuthenticated()">
+                        <form th:action="@{/posts/{postId}/comment(postId=${post.id})}" th:object="${commentDto}" method="POST" class="d-flex align-items-center">
+                            <div class="post-author-avatar me-2" style="width: 32px; height: 32px; font-size: 0.9rem; flex-shrink: 0;">
+                                <img th:if="${currentUser != null && currentUser.avatarUrl != null}" th:src="@{/view-file/{fileName}(fileName=${currentUser.avatarUrl})}" alt="Avatar">
+                                <span th:if="${currentUser == null || currentUser.avatarUrl == null}" th:text="${currentUser != null ? #strings.substring(currentUser.name, 0, 1) : '?'}"></span>
+                            </div>
+                            <input type="text" class="form-control" th:field="*{content}" placeholder="Viết bình luận..." style="border-radius: 20px; height: 38px;"/>
+                            <button type="submit" class="btn btn-outline-blue ms-2" style="height: 38px; border-radius: 20px; flex-shrink: 0;">Gửi</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-4">
+            <div class="card sidebar-right">
+                <div class="card-body">
+                    <h5 class="card-title">Liên hệ</h5>
+                    <div class="user-list-container" th:if="${contacts != null}">
+                        <div th:each="contact : ${contacts}" th:if="${contact.type == T(com.studyhub.StudyHub.entity.ChatRoom.RoomType).ONE_TO_ONE}">
+                            <a th:href="@{/chat(withUser=${contact.oneToOnePartnerId})}"
+                               class="user-list-item-link"
+                               th:attr="data-username=${contact.oneToOnePartnerUsername}">
+
+                                <div class="user-list-item">
+                                    <div class="user-avatar-container">
+                                        <img th:if="${contact.oneToOnePartnerAvatarUrl}" th:src="@{/view-file/{f}(f=${contact.oneToOnePartnerAvatarUrl})}" class="user-avatar-image">
+                                        <div th:unless="${contact.oneToOnePartnerAvatarUrl}" class="user-avatar-default"><span th:text="${#strings.substring(contact.oneToOnePartnerName, 0, 1)}"></span></div>
+                                        <span class="status-dot" th:classappend="${onlineUsers.contains(contact.oneToOnePartnerUsername) ? 'online' : ''}"></span>
+                                    </div>
+                                    <div class="user-info"><span class="user-name" th:text="${contact.oneToOnePartnerName}">Name</span></div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="modals">
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px; overflow: hidden; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                <div class="modal-header border-0 bg-light py-2">
+                    <h5 class="modal-title fw-bold text-primary" id="previewTitle">📄 Xem tài liệu</h5>
+                    <div class="ms-auto d-flex gap-2 align-items-center">
+                        <!-- Tab switcher -->
+                        <div class="preview-tab-group" role="group" id="previewTabGroup" style="display: none;">
+                            <button type="button" class="btn btn-primary btn-sm px-3" id="tabOriginalBtn" onclick="switchPreviewTab('original')" style="font-weight: 600;">📄 File gốc</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-3" id="tabAIBtn" onclick="switchPreviewTab('ai')" style="font-weight: 600; border: none;">✨ Tóm tắt AI</button>
+                        </div>
+                        <button type="button" id="previewAISummarizeBtn" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark px-3" style="border: none; background: linear-gradient(135deg, #ffc107, #ff9800);" onclick="summarizeCurrentFile()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Tóm tắt AI
+                        </button>
+                        <a href="#" id="previewDownloadBtn" class="btn btn-download-green btn-sm rounded-pill px-3">⬇ Tải xuống</a>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-0 bg-light d-flex flex-column align-items-stretch" style="height: 75vh;">
+                    <!-- AI Summary Box -->
+                    <div id="aiSummarySection" class="p-4 bg-white text-start h-100 w-100" style="display: none; overflow-y: auto;">
+                        <h5 class="fw-bold text-primary mb-3">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Tóm tắt tài liệu bằng AI
+                        </h5>
+                        <div id="aiSummaryContent" class="text-dark text-break markdown-content" style="line-height: 1.8; font-size: 1.05rem;">
+                            Đang tóm tắt...
+                        </div>
+                    </div>
+                    <div id="previewContent" class="w-100 h-100">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="deleteCommentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius: 20px; border: none;">
+                <div class="modal-body text-center pt-4">
+                    <div style="width: 60px; height: 60px; background-color: #fee2e2; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 15px auto;">🗑️</div>
+                    <h5 class="fw-bold">Xóa bình luận?</h5>
+                    <p class="text-muted small">Hành động này không thể hoàn tác.</p>
+                </div>
+                <div class="modal-footer border-0 justify-content-center pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger" id="btn-confirm-delete-comment">Xóa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+    let currentDocId = null;
+
+    function switchPreviewTab(tab) {
+        const origBtn = document.getElementById('tabOriginalBtn');
+        const aiBtn = document.getElementById('tabAIBtn');
+        const origContent = document.getElementById('previewContent');
+        const aiContent = document.getElementById('aiSummarySection');
+
+        if (tab === 'original') {
+            origBtn.className = 'btn btn-primary btn-sm px-3';
+            aiBtn.className = 'btn btn-outline-primary btn-sm px-3';
+            origContent.style.setProperty('display', 'block', 'important');
+            aiContent.style.setProperty('display', 'none', 'important');
+        } else {
+            origBtn.className = 'btn btn-outline-primary btn-sm px-3';
+            aiBtn.className = 'btn btn-primary btn-sm px-3';
+            origContent.style.setProperty('display', 'none', 'important');
+            aiContent.style.setProperty('display', 'block', 'important');
+        }
+    }
+
+    function previewFile(elOrId, storagePath, fileName, title) {
+        let docId, path, name, displayTitle;
+        if (elOrId instanceof HTMLElement) {
+            docId = elOrId.getAttribute('data-id');
+            path = elOrId.getAttribute('data-path');
+            name = elOrId.getAttribute('data-name');
+            displayTitle = elOrId.getAttribute('data-title');
+        } else {
+            docId = elOrId;
+            path = storagePath;
+            name = fileName;
+            displayTitle = title;
+        }
+        currentDocId = docId;
+
+        const modalEl = document.getElementById('previewModal');
+        let modal = bootstrap.Modal.getInstance(modalEl);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalEl);
+        }
+        const contentDiv = document.getElementById('previewContent');
+        const titleEl = document.getElementById('previewTitle');
+        const downloadBtn = document.getElementById('previewDownloadBtn');
+
+        // Reset tabs
+        document.getElementById('previewTabGroup').style.display = 'none';
+        switchPreviewTab('original');
+
+        const aiBtn = document.getElementById('previewAISummarizeBtn');
+        if (aiBtn) {
+            aiBtn.disabled = false;
+            aiBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Tóm tắt AI';
+        }
+
+        // Set thông tin cơ bản
+        titleEl.textContent = displayTitle || name;
+        if (downloadBtn) {
+            downloadBtn.href = '/download/' + path;
+        }
+
+        const ext = name.split('.').pop().toLowerCase();
+        const fileUrl = '/view-file/' + path;
+        let html = '';
+
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+            html = `<img src="${fileUrl}" class="preview-image" alt="${name}">`;
+        } else if (ext === 'pdf') {
+            html = `<iframe src="${fileUrl}" class="preview-iframe"></iframe>`;
+        } else {
+            html = `<div class="p-5 text-center">
+                        <p class="text-muted mb-3">Tài liệu định dạng <b>.${ext.toUpperCase()}</b> không hỗ trợ xem trước trực tiếp.</p>
+                                 <a href="/download/${path}" class="btn btn-download-green rounded-pill px-4">⬇ Tải xuống để xem</a>
+                    </div>`;
+        }
+        contentDiv.innerHTML = html;
+        modal.show();
+    }
+
+    function summarizeCurrentFile() {
+        if (!currentDocId) {
+            alert("Không xác định được ID tài liệu.");
+            return;
+        }
+
+        const aiContent = document.getElementById('aiSummaryContent');
+        const aiBtn = document.getElementById('previewAISummarizeBtn');
+
+        // Hiển thị group tab và chuyển sang tab AI
+        document.getElementById('previewTabGroup').style.display = 'inline-flex';
+        switchPreviewTab('ai');
+
+        aiContent.innerHTML = '<em><i class="fa-solid fa-circle-notch fa-spin"></i> Hệ thống AI đang phân tích tài liệu và viết tóm tắt, vui lòng đợi trong giây lát...</em>';
+        
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang tóm tắt...';
+
+        fetch(`/api/documents/${currentDocId}/summarize`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Lỗi kết nối máy chủ");
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    aiContent.innerHTML = marked.parse(data.summary);
+                } else {
+                    aiContent.innerHTML = `<span class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Không thể tóm tắt tài liệu này: ${data.error || 'Lỗi không xác định'}</span>`;
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                aiContent.innerHTML = `<span class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Lỗi hệ thống: Không thể kết nối tới dịch vụ AI.</span>`;
+            })
+            .finally(() => {
+                aiBtn.disabled = false;
+                aiBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Tóm tắt lại';
+            });
+    }
+
+    // === PHẦN LOGIC PRESENCE & FEED (Realtime) ===
+    let stompClientFeed = null;
+
+    function connectFeedAndPresence() {
+        const socket = new SockJS('/ws');
+        stompClientFeed = Stomp.over(socket);
+        stompClientFeed.debug = null; // Tắt log debug cho gọn
+
+        stompClientFeed.connect({}, function (frame) {
+            console.log("Connected to Feed & Presence WebSocket");
+
+            // 1. Lắng nghe bình luận mới
+            stompClientFeed.subscribe('/topic/comments', function (payload) {
+                const data = JSON.parse(payload.body);
+                if (data.type === 'DELETE_COMMENT') handleDeleteCommentUI(data.commentId);
+                else appendNewComment(data);
+            });
+
+            // 2. Lắng nghe trạng thái Online/Offline
+            stompClientFeed.subscribe('/topic/presence', function (payload) {
+                const presence = JSON.parse(payload.body); // {username: "...", status: "ONLINE"/"OFFLINE"}
+                updateUserPresenceStatus(presence.username, presence.status);
+            });
+        });
+    }
+
+    // Hàm cập nhật giao diện chấm xanh
+    function updateUserPresenceStatus(username, status) {
+        // Tìm các thẻ contact dựa trên attribute data-username mà ta đã thêm trong HTML
+        const userItems = document.querySelectorAll(`.user-list-item-link[data-username="${username}"]`);
+
+        userItems.forEach(link => {
+            const dot = link.querySelector('.status-dot');
+            if (dot) {
+                if (status === 'ONLINE') {
+                    dot.classList.add('online');
+                } else {
+                    dot.classList.remove('online');
+                }
+            }
+        });
+    }
+
+    function handleDeleteCommentUI(id) {
+        const el = document.getElementById('comment-' + id);
+        if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }
+    }
+
+    function deleteComment(id) {
+        const token = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const header = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+        fetch('/api/comments/' + id + '/delete', { method: 'POST', headers: { [header]: token } });
+    }
+
+    // Chèn comment mới lên đầu danh sách
+    function appendNewComment(cmt) {
+        if (!cmt.content || !cmt.postId) return;
+
+        // Tìm đúng div danh sách comment (comments-list-{id})
+        const container = document.getElementById('comments-list-' + cmt.postId);
+
+        if (container) {
+            const initial = cmt.senderName.charAt(0).toUpperCase();
+            const avatarHtml = cmt.senderAvatar ? `<img src="/view-file/${cmt.senderAvatar}" alt="Avatar">` : `<span>${initial}</span>`;
+
+            const html = `
+            <div id="comment-${cmt.id}" class="mb-2 d-flex group-comment-item animate-fade-in">
+                <div class="post-author-avatar me-2" style="width: 32px; height: 32px; font-size: 0.9rem;">${avatarHtml}</div>
+                <div class="ms-2 position-relative" style="background-color: #f0f2f5; border-radius: 15px; padding: 8px 12px; flex-grow: 1;">
+                    <strong><a href="/profile/${cmt.senderUsername}" style="text-decoration: none; color: inherit;">${cmt.senderName}</a></strong>
+                    <p class="mb-0">${cmt.content}</p>
+                    <small class="text-muted">Vừa xong</small>
+                    <button class="btn btn-sm text-danger position-absolute top-0 end-0 p-1 delete-comment-btn" data-id="${cmt.id}" style="font-size: 12px; margin-right: 5px;">✖</button>
+                </div>
+            </div>`;
+
+            // Chèn lên đầu
+            container.insertAdjacentHTML('afterbegin', html);
+        }
+    }
+
+    let commentIdToDelete = null;
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.delete-comment-btn');
+        if (btn) {
+            e.preventDefault();
+            commentIdToDelete = btn.getAttribute('data-id');
+            new bootstrap.Modal(document.getElementById('deleteCommentModal')).show();
+        }
+    });
+
+    document.getElementById('btn-confirm-delete-comment').addEventListener('click', function() {
+        if (commentIdToDelete) {
+            deleteComment(commentIdToDelete);
+            bootstrap.Modal.getInstance(document.getElementById('deleteCommentModal')).hide();
+            commentIdToDelete = null;
+        }
+    });
+
+    function toggleComments(postId, showMore) {
+        const hidden = document.querySelectorAll('.hidden-comment-' + postId);
+        const btnMore = document.getElementById('btn-more-' + postId);
+        const btnLess = document.getElementById('btn-less-' + postId);
+
+        hidden.forEach(el => {
+            if (showMore) { el.classList.remove('d-none'); el.classList.add('animate-fade-in'); }
+            else { el.classList.add('d-none'); el.classList.remove('animate-fade-in'); }
+        });
+
+        if (showMore) { btnMore.style.display = 'none'; btnLess.style.display = 'inline-block'; }
+        else { btnMore.style.display = 'inline-block'; btnLess.style.display = 'none'; }
+    }
+
+    const style = document.createElement('style');
+    style.innerHTML = `.animate-fade-in { animation: fadeIn 0.5s ease-in; } @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`;
+    document.head.appendChild(style);
+
+    // Kích hoạt kết nối khi trang tải xong
+    document.addEventListener('DOMContentLoaded', connectFeedAndPresence);
+    </script>
+</th:block>
+
+</body>
+</html>
