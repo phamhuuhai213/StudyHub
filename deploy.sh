@@ -5,7 +5,7 @@
 # Chỉnh sửa VPS_IP và VPS_USER cho đúng
 # ===================================
 
-VPS_IP="123.45.67.89"        # ← Thay bằng IP VPS của bạn
+VPS_IP="161.35.57.163"        # ← Thay bằng IP VPS của bạn
 VPS_USER="root"
 REMOTE_DIR="/opt/studyhub"
 JAR_NAME="StudyHub-0.0.1-SNAPSHOT.jar"
@@ -30,7 +30,7 @@ echo "🚀 [3/3] Restart service..."
 ssh $VPS_USER@$VPS_IP "systemctl restart studyhub && sleep 3 && systemctl is-active studyhub"
 if [ $? -ne 0 ]; then
     echo "❌ Restart thất bại! Kiểm tra log: journalctl -u studyhub -n 50"
-    exit 1`
+    exit 1
 fi
 
 echo ""
