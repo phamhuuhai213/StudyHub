@@ -13,9 +13,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Endpoint để client kết nối (với SockJS)
-        registry.addEndpoint("/ws").withSockJS();
+        // Cho phép kết nối WebSocket từ mọi tên miền (bao gồm huuhai.me và www.huuhai.me)
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
+
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
