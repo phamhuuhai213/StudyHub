@@ -60,8 +60,7 @@ function hideModal(modalId) {
 // HELPERS: STOMP
 // ======================
 function getStompClient() {
-    // socket.js đã set window.stompClient = state.stompClient;
-    const c = window.stompClient;
+    const c = window.stompClient || window.stompClientGlobal;
     if (c && c.connected) return c;
     return null;
 }

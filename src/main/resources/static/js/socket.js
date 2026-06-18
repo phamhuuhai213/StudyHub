@@ -47,11 +47,7 @@ async function onConnected() {
             console.error('Lỗi parse chat queue payload:', e);
         }
     });
-    state.stompClient.subscribe('/user/queue/video-call', function(payload) {
-        if (typeof handleVideoSignal === "function") {
-            handleVideoSignal(payload);
-        }
-    });
+
 
     // Load Data
     loadFriendList();

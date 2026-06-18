@@ -214,30 +214,6 @@
         </div>
     </div>
 
-    <div class="modal fade" id="videoCallModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content bg-dark text-white" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title">📹 Video Call</h5>
-                </div>
-                <div class="modal-body p-0 position-relative" style="height: 70vh; background: black;">
-
-                    <video id="remoteVideo" autoplay playsinline
-                           style="width: 100%; height: 100%; object-fit: contain; background-color: #000;"></video>
-
-                    <video id="localVideo" autoplay muted playsinline
-                           style="position: absolute; bottom: 20px; right: 20px; width: 240px; height: 180px; border-radius: 10px; border: 2px solid white; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 10;"></video>
-
-                </div>
-                <div class="modal-footer border-0 justify-content-center bg-dark">
-                    <button type="button" class="btn btn-danger rounded-circle p-3" id="btn-end-call" title="Kết thúc cuộc gọi" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 24px;">📞</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="groupMembersModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius: 15px;">
@@ -259,30 +235,6 @@
             </div>
         </div>
     </div>
-
-    <div class="modal fade" id="incomingCallModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center p-4" style="border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-                <div class="mb-3">
-                    <div style="width: 80px; height: 80px; background: #e7f3ff; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 40px;">📲</span>
-                    </div>
-                </div>
-                <h5 class="fw-bold mb-1">Cuộc gọi đến</h5>
-                <p id="caller-name" class="text-muted mb-4">Someone is calling...</p>
-
-                <div class="d-flex justify-content-center gap-4">
-                    <button type="button" class="btn btn-danger rounded-circle p-3" id="btn-reject-call" title="Từ chối" style="width: 60px; height: 60px;">
-                        <span style="font-size: 20px;">❌</span>
-                    </button>
-                    <button type="button" class="btn btn-success rounded-circle p-3" id="btn-accept-call" title="Trả lời" style="width: 60px; height: 60px; animation: pulse 1.5s infinite;">
-                        <span style="font-size: 20px;">📞</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 
