@@ -6,48 +6,73 @@ import { loadChatRooms, checkUrlForRedirect, onRoomEventReceived } from './rooms
 import { showUnreadDot } from './messaging.js';
 
 export function connect() {
-    const socket = new SockJS('/ws');
-    state.stompClient = Stomp.over(socket);
-    state.stompClient.debug = null;
-    window.stompClient = state.stompClient;
-    state.stompClient.connect({}, onConnected, onError);
+    const client = window.stompClientGlobal;
+    if (client && client.connected) {
+        state.stompClient = client;
+        window.stompClient = client;
+        onConnected();
+    } else {
+        if (dom.connectionStatusEl) {
+            dom.connectionStatusEl.style.display = 'block';
+            dom.connectionStatusEl.className = "reconnecting";
+            dom.connectionStatusEl.innerHTML = '<i class="fa-solid fa-wifi"></i> Đang kết nối...';
+        }
+        toggleInputState(false);
+    }
+
+    // Lắng nghe sự kiện kết nối của global
+    document.addEventListener('wsConnected', function(e) {
+        state.stompClient = e.detail;
+        window.stompClient = e.detail;
+        onConnected();
+    });
+
+    document.addEventListener('wsDisconnected', function(e) {
+        onError(e.detail);
+    });
 }
 
 async function onConnected() {
-    console.log('Đã kết nối WebSocket Chat!');
+    console.log('Đã đồng bộ WebSocket Chat từ Global!');
     state.isConnected = true;
 
     if (dom.connectionStatusEl) dom.connectionStatusEl.style.display = 'none';
 
-    if (state.reconnectInterval) {
-        clearInterval(state.reconnectInterval);
-        state.reconnectInterval = null;
-    }
-
     toggleInputState(true);
 
+    // Hủy các subscribe cũ của trang chat để tránh trùng lặp nhận tin nhắn
+    if (state.chatPageSubscriptions) {
+        state.chatPageSubscriptions.forEach(sub => {
+            try { sub.unsubscribe(); } catch(e){}
+        });
+    }
+    state.chatPageSubscriptions = [];
+
     // Subscribe
-    state.stompClient.subscribe('/topic/presence', onPresenceMessageReceived);
-    state.stompClient.subscribe('/user/queue/notifications', onNotificationReceived);
+    state.chatPageSubscriptions.push(
+        state.stompClient.subscribe('/topic/presence', onPresenceMessageReceived)
+    );
+    state.chatPageSubscriptions.push(
+        state.stompClient.subscribe('/user/queue/notifications', onNotificationReceived)
+    );
+    state.chatPageSubscriptions.push(
+        state.stompClient.subscribe('/user/queue/room-events', onRoomEventReceived)
+    );
 
-    // Realtime: tạo nhóm / thêm-kick thành viên / rời nhóm -> cập nhật sidebar không cần reload trang
-    state.stompClient.subscribe('/user/queue/room-events', onRoomEventReceived);
-
-    // Lắng nghe tin nhắn mới ở BẤT KỲ phòng nào (server sẽ gửi /queue/chat cho từng user)
-    // -> dùng để hiện chấm đỏ ở sidebar (và badge navbar) khi user KHÔNG mở phòng đó.
-    state.stompClient.subscribe('/user/queue/chat', function(payload) {
-        try {
-            const messageDto = JSON.parse(payload.body);
-            const incomingRoomId = String(messageDto.roomId);
-            const currentRoomId = state.currentRoomId ? String(state.currentRoomId) : null;
-            if (currentRoomId !== incomingRoomId) {
-                showUnreadDot(incomingRoomId);
+    state.chatPageSubscriptions.push(
+        state.stompClient.subscribe('/user/queue/chat', function(payload) {
+            try {
+                const messageDto = JSON.parse(payload.body);
+                const incomingRoomId = String(messageDto.roomId);
+                const currentRoomId = state.currentRoomId ? String(state.currentRoomId) : null;
+                if (currentRoomId !== incomingRoomId) {
+                    showUnreadDot(incomingRoomId);
+                }
+            } catch (e) {
+                console.error('Lỗi parse chat queue payload:', e);
             }
-        } catch (e) {
-            console.error('Lỗi parse chat queue payload:', e);
-        }
-    });
-
+        })
+    );
 
     // Load Data
     loadFriendList();
@@ -63,7 +88,7 @@ async function onConnected() {
 }
 
 function onError(error) {
-    console.error('Mất kết nối WebSocket:', error);
+    console.error('WebSocket Chat bị ngắt:', error);
     state.isConnected = false;
 
     if (dom.connectionStatusEl) {
@@ -73,11 +98,4 @@ function onError(error) {
     }
 
     toggleInputState(false);
-
-    if (!state.reconnectInterval) {
-        state.reconnectInterval = setInterval(() => {
-            console.log("Đang thử kết nối lại...");
-            connect();
-        }, 5000);
-    }
 }

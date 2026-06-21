@@ -555,11 +555,18 @@
 
 <script>
     let stompClientGlobal = null;
+    let reconnectTimeout = null;
 
-    // Kết nối WebSocket toàn cục để lắng nghe thông báo
+    // Kết nối WebSocket toàn cục để lắng nghe thông báo và cuộc gọi
     function connectGlobal() {
         const userElement = document.getElementById('current-username-global');
         if (!userElement) return;
+
+        // Xóa các timeout kết nối lại trước đó nếu có
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
 
         const socket = new SockJS('/ws');
         stompClientGlobal = Stomp.over(socket);
@@ -567,7 +574,8 @@
         window.stompClientGlobal = stompClientGlobal;
 
         stompClientGlobal.connect({}, function (frame) {
-            console.log('Connected Global WS for Notifications');
+            console.log('Connected Global WS');
+            window.stompClientConnected = true;
 
             stompClientGlobal.subscribe('/user/queue/video-call', function (payload) {
                 if (typeof handleVideoSignal === "function") {
@@ -584,24 +592,29 @@
             // Lắng nghe tin nhắn mới (để hiện dấu chấm đỏ ở icon Tin nhắn)
             stompClientGlobal.subscribe('/user/queue/chat', function (payload) {
                 // Nếu đang ở trang /chat thì sidebar đã xử lý dấu chấm đỏ.
-                // Tránh hiện badge trên navbar khi user đang trực tiếp xem chat.
                 if (window.location.pathname && window.location.pathname.startsWith('/chat')) {
                     return;
                 }
                 try {
-                    // payload là ChatDTOs.MessageDto
                     JSON.parse(payload.body);
                     showChatBadge(true);
                 } catch (e) {
-                    // nếu payload không phải JSON vẫn cứ hiện badge
                     showChatBadge(true);
                 }
             });
 
             fetchUnreadCount();
 
+            // Phát sự kiện toàn cục để các script trang con có thể dùng chung connection này
+            document.dispatchEvent(new CustomEvent('wsConnected', { detail: stompClientGlobal }));
+
         }, function (error) {
-            console.log('WS Error: ' + error);
+            console.log('WS Global Disconnected: ' + error);
+            window.stompClientConnected = false;
+            document.dispatchEvent(new CustomEvent('wsDisconnected', { detail: error }));
+
+            // Tự động thử kết nối lại sau 5 giây
+            reconnectTimeout = setTimeout(connectGlobal, 5000);
         });
     }
 

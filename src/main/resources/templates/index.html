@@ -413,28 +413,30 @@
     }
 
     // === PHẦN LOGIC PRESENCE & FEED (Realtime) ===
-    let stompClientFeed = null;
+    function initFeedAndPresence() {
+        const client = window.stompClientGlobal;
+        if (client && client.connected) {
+            setupFeedSubscriptions(client);
+        }
+        document.addEventListener('wsConnected', function (e) {
+            setupFeedSubscriptions(e.detail);
+        });
+    }
 
-    function connectFeedAndPresence() {
-        const socket = new SockJS('/ws');
-        stompClientFeed = Stomp.over(socket);
-        stompClientFeed.debug = null; // Tắt log debug cho gọn
+    function setupFeedSubscriptions(client) {
+        console.log("Setting up Feed & Presence subscriptions via Global WS");
+        
+        // 1. Lắng nghe bình luận mới
+        client.subscribe('/topic/comments', function (payload) {
+            const data = JSON.parse(payload.body);
+            if (data.type === 'DELETE_COMMENT') handleDeleteCommentUI(data.commentId);
+            else appendNewComment(data);
+        });
 
-        stompClientFeed.connect({}, function (frame) {
-            console.log("Connected to Feed & Presence WebSocket");
-
-            // 1. Lắng nghe bình luận mới
-            stompClientFeed.subscribe('/topic/comments', function (payload) {
-                const data = JSON.parse(payload.body);
-                if (data.type === 'DELETE_COMMENT') handleDeleteCommentUI(data.commentId);
-                else appendNewComment(data);
-            });
-
-            // 2. Lắng nghe trạng thái Online/Offline
-            stompClientFeed.subscribe('/topic/presence', function (payload) {
-                const presence = JSON.parse(payload.body); // {username: "...", status: "ONLINE"/"OFFLINE"}
-                updateUserPresenceStatus(presence.username, presence.status);
-            });
+        // 2. Lắng nghe trạng thái Online/Offline
+        client.subscribe('/topic/presence', function (payload) {
+            const presence = JSON.parse(payload.body); // {username: "...", status: "ONLINE"/"OFFLINE"}
+            updateUserPresenceStatus(presence.username, presence.status);
         });
     }
 
@@ -530,7 +532,7 @@
     document.head.appendChild(style);
 
     // Kích hoạt kết nối khi trang tải xong
-    document.addEventListener('DOMContentLoaded', connectFeedAndPresence);
+    document.addEventListener('DOMContentLoaded', initFeedAndPresence);
     </script>
 </th:block>
 
