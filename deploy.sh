@@ -1,11 +1,4 @@
-#!/bin/bash
-
-# ===================================
-# STUDYHUB DEPLOY SCRIPT
-# Chỉnh sửa VPS_IP và VPS_USER cho đúng
-# ===================================
-
-VPS_IP="161.35.57.163"        # ← Thay bằng IP VPS của bạn
+VPS_IP="161.35.57.163"      
 VPS_USER="root"
 REMOTE_DIR="/opt/studyhub"
 JAR_NAME="StudyHub-0.0.1-SNAPSHOT.jar"
