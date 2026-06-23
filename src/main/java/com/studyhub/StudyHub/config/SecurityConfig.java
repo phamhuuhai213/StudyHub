@@ -72,12 +72,12 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives(
                                         "default-src 'self'; " +
-                                                // Cho phép CSS từ cdnjs, bootstrap và Google Fonts
-                                                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
+                                                // Cho phép CSS từ cdnjs (để tải FontAwesome)
+                                                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
                                                 // Cho phép Script
                                                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-                                                // Cho phép Font từ cdnjs, bootstrap và Google Fonts (gstatic)
-                                                "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; " +
+                                                // Thêm https://cdn.jsdelivr.net ===
+                                                "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
                                                 "img-src 'self' data:; " +
                                                 "connect-src 'self' ws: wss: http: https:; " +
                                                 "frame-src 'self';"

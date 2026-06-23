@@ -20,7 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-// ... imports
+import java.util.Map;
 import com.studyhub.StudyHub.entity.Comment;
 @Service
 public class PostServiceImpl implements PostService {
@@ -108,6 +108,39 @@ public class PostServiceImpl implements PostService {
         post.setDocuments(documents);
 
         postRepository.save(post);
+
+        try {
+            Map<String, Object> broadcastData = new java.util.HashMap<>();
+            broadcastData.put("type", "NEW_POST");
+            broadcastData.put("postId", post.getId());
+            broadcastData.put("authorName", user.getName());
+            broadcastData.put("authorUsername", user.getUsername());
+            broadcastData.put("authorAvatar", user.getAvatarUrl());
+            broadcastData.put("content", post.getContent());
+            broadcastData.put("isPublic", post.isPublic());
+
+            java.time.LocalDateTime createdAt = post.getCreatedAt() != null ? post.getCreatedAt() : java.time.LocalDateTime.now();
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm 'ngày' dd/MM/yyyy");
+            broadcastData.put("createdAt", createdAt.format(formatter));
+
+            List<Map<String, Object>> docsList = new java.util.ArrayList<>();
+            if (post.getDocuments() != null) {
+                for (Document doc : post.getDocuments()) {
+                    Map<String, Object> docMap = new java.util.HashMap<>();
+                    docMap.put("id", doc.getId());
+                    docMap.put("title", doc.getTitle());
+                    docMap.put("fileName", doc.getFileName());
+                    docMap.put("storagePath", doc.getStoragePath());
+                    docMap.put("description", doc.getDescription());
+                    docsList.add(docMap);
+                }
+            }
+            broadcastData.put("documents", docsList);
+
+            messagingTemplate.convertAndSend("/topic/posts", broadcastData);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -147,24 +180,43 @@ public class PostServiceImpl implements PostService {
     public void toggleLike(Long postId, Principal principal) {
         User user = getCurrentUser(principal);
 
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Post"));
+
         Optional<Reaction> existingLike = reactionRepository.findByPostIdAndUserId(postId, user.getId());
 
         if (existingLike.isPresent()) {
-            reactionRepository.delete(existingLike.get());
+            Reaction reaction = existingLike.get();
+            reactionRepository.delete(reaction);
+            post.getReactions().remove(reaction);
         } else {
-            Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy Post"));
-
             Reaction reaction = new Reaction();
             reaction.setType("LIKE");
             reaction.setUser(user);
             reaction.setPost(post);
             reactionRepository.save(reaction);
+            post.getReactions().add(reaction);
+
             String notiContent = user.getName() + " đã thích bài viết của bạn.";
-
             String link = "/?keyword=" + postId;
-
             notificationService.sendNotification(user, post.getUser(), notiContent, link);
+        }
+
+        // Broadcast reaction updates
+        try {
+            Map<String, Object> reactionUpdate = new java.util.HashMap<>();
+            reactionUpdate.put("postId", postId);
+            reactionUpdate.put("likesCount", post.getReactions().size());
+
+            List<Long> userIds = new java.util.ArrayList<>();
+            for (Reaction r : post.getReactions()) {
+                userIds.add(r.getUser().getId());
+            }
+            reactionUpdate.put("userIds", userIds);
+
+            messagingTemplate.convertAndSend("/topic/posts/reactions", reactionUpdate);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
     @Override

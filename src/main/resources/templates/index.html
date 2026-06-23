@@ -91,7 +91,7 @@
             <div th:if="${successMessage}" class="alert alert-success" role="alert"><span th:text="${successMessage}"></span></div>
             <div th:if="${errorMessage}" class="alert alert-danger" role="alert"><span th:text="${errorMessage}"></span></div>
 
-            <div class="card mb-3" th:each="post : ${posts}">
+            <div class="card mb-3" th:each="post : ${posts}" th:id="'post-card-' + ${post.id}" th:attr="data-author-username=${post.user.username}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="d-flex align-items-center">
@@ -156,16 +156,17 @@
                     <div class="d-flex gap-4 align-items-center py-1">
                         <form th:action="@{/posts/{postId}/like(postId=${post.id})}" method="POST" class="d-inline">
                             <button type="submit" class="post-action-btn"
+                                    th:id="'like-btn-' + ${post.id}"
                                     th:with="liked = ${#lists.contains(post.reactions.![user.id], currentUserId)}"
                                     th:style="${liked} ? 'color: #3b82f6 !important;' : ''">
                                 <i th:class="${liked} ? 'fa-solid fa-thumbs-up me-2' : 'fa-regular fa-thumbs-up me-2'" style="font-size: 1.25rem;"></i>
-                                <span th:text="${post.reactions.size()}">0</span>
+                                <span th:id="'like-count-' + ${post.id}" th:text="${post.reactions.size()}">0</span>
                             </button>
                         </form>
                         <a href="javascript:void(0)" class="post-action-btn"
                            th:onclick="'const inp = this.closest(\'.card-body\').querySelector(\'input[placeholder*=\\\'bình luận\\\']\'); if(inp) inp.focus();'">
                             <i class="fa-regular fa-comment me-2" style="font-size: 1.25rem;"></i>
-                            <span th:text="${post.comments.size()}">0</span>
+                            <span class="comment-count" th:id="'comment-count-' + ${post.id}" th:text="${post.comments.size()}">0</span>
                         </a>
                     </div>
                     <hr>
@@ -413,38 +414,181 @@
     }
 
     // === PHẦN LOGIC PRESENCE & FEED (Realtime) ===
-    function initFeedAndPresence() {
-        const client = window.stompClientGlobal;
-        if (client && client.connected) {
-            setupFeedSubscriptions(client);
-        }
-        document.addEventListener('wsConnected', function (e) {
-            setupFeedSubscriptions(e.detail);
+    let stompClientFeed = null;
+
+    function connectFeedAndPresence() {
+        const socket = new SockJS('/ws');
+        stompClientFeed = Stomp.over(socket);
+        stompClientFeed.debug = null; // Tắt log debug cho gọn
+
+        stompClientFeed.connect({}, function (frame) {
+            console.log("Connected to Feed & Presence WebSocket");
+
+            // 1. Lắng nghe bình luận mới
+            stompClientFeed.subscribe('/topic/comments', function (payload) {
+                const data = JSON.parse(payload.body);
+                if (data.type === 'DELETE_COMMENT') {
+                    handleDeleteCommentUI(data.commentId);
+                } else {
+                    appendNewComment(data);
+                }
+            });
+
+            // 2. Lắng nghe trạng thái Online/Offline
+            stompClientFeed.subscribe('/topic/presence', function (payload) {
+                const presence = JSON.parse(payload.body); // {username: "...", status: "ONLINE"/"OFFLINE"}
+                updateUserPresenceStatus(presence.username, presence.status);
+            });
+
+            // 3. Lắng nghe bài viết mới (Tài liệu upload)
+            stompClientFeed.subscribe('/topic/posts', function (payload) {
+                const post = JSON.parse(payload.body);
+                prependNewPost(post);
+            });
+
+            // 4. Lắng nghe cập nhật lượt thích (Like)
+            stompClientFeed.subscribe('/topic/posts/reactions', function (payload) {
+                const data = JSON.parse(payload.body); // { postId: 123, likesCount: 5, userIds: [1, 2] }
+                updateLikesUI(data.postId, data.likesCount, data.userIds);
+            });
         });
     }
 
-    function setupFeedSubscriptions(client) {
-        console.log("Setting up Feed & Presence subscriptions via Global WS");
-        
-        // 1. Lắng nghe bình luận mới
-        client.subscribe('/topic/comments', function (payload) {
-            const data = JSON.parse(payload.body);
-            if (data.type === 'DELETE_COMMENT') handleDeleteCommentUI(data.commentId);
-            else appendNewComment(data);
-        });
+    // Hàm cập nhật lượt thích trong thời gian thực
+    function updateLikesUI(postId, likesCount, userIds) {
+        const countSpan = document.getElementById('like-count-' + postId);
+        if (countSpan) {
+            countSpan.textContent = likesCount;
+        }
 
-        // 2. Lắng nghe trạng thái Online/Offline
-        client.subscribe('/topic/presence', function (payload) {
-            const presence = JSON.parse(payload.body); // {username: "...", status: "ONLINE"/"OFFLINE"}
-            updateUserPresenceStatus(presence.username, presence.status);
-        });
+        const currentUserIdEl = document.getElementById('current-userid-global');
+        if (currentUserIdEl) {
+            const currentUserId = parseInt(currentUserIdEl.value);
+            const isLiked = userIds.includes(currentUserId);
+            const likeBtn = document.getElementById('like-btn-' + postId);
+            if (likeBtn) {
+                const icon = likeBtn.querySelector('i');
+                if (isLiked) {
+                    likeBtn.style.setProperty('color', '#3b82f6', 'important');
+                    if (icon) icon.className = 'fa-solid fa-thumbs-up me-2';
+                } else {
+                    likeBtn.style.setProperty('color', '', '');
+                    if (icon) icon.className = 'fa-regular fa-thumbs-up me-2';
+                }
+            }
+        }
+    }
+
+    // Hàm chèn bài đăng mới lên đầu trang chủ
+    function prependNewPost(post) {
+        if (document.getElementById('post-card-' + post.postId)) return;
+
+        const feedContainer = document.querySelector('.col-lg-6.col-md-8');
+        if (!feedContainer) return;
+
+        const avatarHtml = post.authorAvatar
+            ? `<img src="/view-file/${post.authorAvatar}" alt="Avatar">`
+            : `<span>${post.authorName.charAt(0).toUpperCase()}</span>`;
+
+        const privacyIcon = post.isPublic
+            ? `<span title="Công khai">🌐</span>`
+            : `<span title="Riêng tư">🔒</span>`;
+
+        let docsHtml = '';
+        if (post.documents && post.documents.length > 0) {
+            docsHtml = '<div class="mt-3"><div class="list-group">';
+            post.documents.forEach(doc => {
+                docsHtml += `
+                    <div class="list-group-item list-group-item-action flex-column align-items-start mb-2 border rounded p-3">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h5 class="mb-1 fw-bold" style="font-size: 1.1rem;">📄 <span>${doc.title || doc.fileName}</span></h5>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn-preview"
+                                        data-id="${doc.id}"
+                                        data-path="${doc.storagePath}"
+                                        data-name="${doc.fileName}"
+                                        data-title="${doc.title}"
+                                        onclick="previewFile(this)">👁️ Xem</button>
+                                 <a href="/download/${doc.storagePath}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải</a>
+                            </div>
+                        </div>
+                        <p class="mb-1">${doc.description || ''}</p>
+                    </div>
+                `;
+            });
+            docsHtml += '</div></div>';
+        }
+
+        const currentUserAvatarHtml = document.querySelector('.user-menu-btn div')
+            ? document.querySelector('.user-menu-btn div').innerHTML
+            : '<span>?</span>';
+
+        const postHtml = `
+            <div class="card mb-3 animate-fade-in" id="post-card-${post.postId}" data-author-username="${post.authorUsername}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center">
+                            <a href="/profile/${post.authorUsername}">
+                                <div class="post-author-avatar">${avatarHtml}</div>
+                            </a>
+                            <div class="ms-2">
+                                <a class="fw-bold text-decoration-none text-dark" href="/profile/${post.authorUsername}">${post.authorName}</a>
+                                <div class="text-muted small">
+                                    <span>${post.createdAt}</span>
+                                    ${privacyIcon}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="card-text">${post.content || ''}</p>
+
+                    ${docsHtml}
+
+                    <hr>
+                    <div class="d-flex gap-4 align-items-center py-1">
+                        <form action="/posts/${post.postId}/like" method="POST" class="d-inline">
+                            <button type="submit" class="post-action-btn" id="like-btn-${post.postId}">
+                                <i class="fa-regular fa-thumbs-up me-2" style="font-size: 1.25rem;"></i>
+                                <span id="like-count-${post.postId}">0</span>
+                            </button>
+                        </form>
+                        <a href="javascript:void(0)" class="post-action-btn"
+                           onclick="const inp = this.closest('.card-body').querySelector('input[placeholder*=\\'bình luận\\']'); if(inp) inp.focus();">
+                            <i class="fa-regular fa-comment me-2" style="font-size: 1.25rem;"></i>
+                            <span class="comment-count" id="comment-count-${post.postId}">0</span>
+                        </a>
+                    </div>
+                    <hr>
+
+                    <div class="comments-wrapper">
+                        <div id="comments-list-${post.postId}">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <form action="/posts/${post.postId}/comment" method="POST" class="d-flex align-items-center">
+                            <div class="post-author-avatar me-2" style="width: 32px; height: 32px; font-size: 0.9rem; flex-shrink: 0;">
+                                ${currentUserAvatarHtml}
+                            </div>
+                            <input type="text" class="form-control" name="content" placeholder="Viết bình luận..." style="border-radius: 20px; height: 38px;"/>
+                            <button type="submit" class="btn btn-outline-blue ms-2" style="height: 38px; border-radius: 20px; flex-shrink: 0;">Gửi</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const searchCard = feedContainer.querySelector('.card.mb-4.shadow-sm');
+        if (searchCard) {
+            searchCard.insertAdjacentHTML('afterend', postHtml);
+        } else {
+            feedContainer.insertAdjacentHTML('afterbegin', postHtml);
+        }
     }
 
     // Hàm cập nhật giao diện chấm xanh
     function updateUserPresenceStatus(username, status) {
-        // Tìm các thẻ contact dựa trên attribute data-username mà ta đã thêm trong HTML
         const userItems = document.querySelectorAll(`.user-list-item-link[data-username="${username}"]`);
-
         userItems.forEach(link => {
             const dot = link.querySelector('.status-dot');
             if (dot) {
@@ -457,9 +601,20 @@
         });
     }
 
-    function handleDeleteCommentUI(id) {
-        const el = document.getElementById('comment-' + id);
-        if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }
+    function handleDeleteCommentUI(commentId) {
+        const el = document.getElementById('comment-' + commentId);
+        if (el) {
+            const parent = el.closest('[id^="comments-list-"]');
+            if (parent) {
+                const postId = parent.id.replace('comments-list-', '');
+                const countSpan = document.getElementById('comment-count-' + postId);
+                if (countSpan) {
+                    countSpan.textContent = Math.max(0, parseInt(countSpan.textContent) - 1);
+                }
+            }
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        }
     }
 
     function deleteComment(id) {
@@ -472,12 +627,23 @@
     function appendNewComment(cmt) {
         if (!cmt.content || !cmt.postId) return;
 
-        // Tìm đúng div danh sách comment (comments-list-{id})
         const container = document.getElementById('comments-list-' + cmt.postId);
-
         if (container) {
+            if (document.getElementById('comment-' + cmt.id)) return;
+
             const initial = cmt.senderName.charAt(0).toUpperCase();
             const avatarHtml = cmt.senderAvatar ? `<img src="/view-file/${cmt.senderAvatar}" alt="Avatar">` : `<span>${initial}</span>`;
+
+            const currentUsername = document.getElementById('current-username-global')?.value;
+            const postCard = document.getElementById('post-card-' + cmt.postId);
+            const postOwnerUsername = postCard ? postCard.getAttribute('data-author-username') : '';
+
+            const isCommentOwner = currentUsername && cmt.senderUsername === currentUsername;
+            const isPostOwner = currentUsername && postOwnerUsername === currentUsername;
+
+            const deleteBtnHtml = (isCommentOwner || isPostOwner)
+                ? `<button class="btn btn-sm text-danger position-absolute top-0 end-0 p-1 delete-comment-btn" data-id="${cmt.id}" style="font-size: 12px; margin-right: 5px;">✖</button>`
+                : '';
 
             const html = `
             <div id="comment-${cmt.id}" class="mb-2 d-flex group-comment-item animate-fade-in">
@@ -486,12 +652,17 @@
                     <strong><a href="/profile/${cmt.senderUsername}" style="text-decoration: none; color: inherit;">${cmt.senderName}</a></strong>
                     <p class="mb-0">${cmt.content}</p>
                     <small class="text-muted">Vừa xong</small>
-                    <button class="btn btn-sm text-danger position-absolute top-0 end-0 p-1 delete-comment-btn" data-id="${cmt.id}" style="font-size: 12px; margin-right: 5px;">✖</button>
+                    ${deleteBtnHtml}
                 </div>
             </div>`;
 
-            // Chèn lên đầu
-            container.insertAdjacentHTML('afterbegin', html);
+            container.insertAdjacentHTML('beforeend', html);
+
+            // Tăng số lượng bình luận
+            const countSpan = document.getElementById('comment-count-' + cmt.postId);
+            if (countSpan) {
+                countSpan.textContent = parseInt(countSpan.textContent) + 1;
+            }
         }
     }
 
@@ -510,6 +681,55 @@
             deleteComment(commentIdToDelete);
             bootstrap.Modal.getInstance(document.getElementById('deleteCommentModal')).hide();
             commentIdToDelete = null;
+        }
+    });
+
+    // Intercept form likes và comments gửi bằng AJAX
+    document.addEventListener('submit', function(e) {
+        // 1. Intercept Like
+        const likeForm = e.target.closest('form[action$="/like"]');
+        if (likeForm) {
+            e.preventDefault();
+            const action = likeForm.getAttribute('action');
+            const token = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const header = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+            fetch(action, {
+                method: 'POST',
+                headers: {
+                    [header]: token
+                }
+            });
+            return;
+        }
+
+        // 2. Intercept Comment
+        const commentForm = e.target.closest('form[action$="/comment"]');
+        if (commentForm) {
+            e.preventDefault();
+            const action = commentForm.getAttribute('action');
+            const input = commentForm.querySelector('input[name="content"]');
+            if (!input) return;
+            const content = input.value.trim();
+            if (!content) return;
+
+            const token = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const header = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+            const formData = new FormData();
+            formData.append('content', content);
+
+            fetch(action, {
+                method: 'POST',
+                headers: {
+                    [header]: token
+                },
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    input.value = '';
+                }
+            });
         }
     });
 
@@ -532,7 +752,7 @@
     document.head.appendChild(style);
 
     // Kích hoạt kết nối khi trang tải xong
-    document.addEventListener('DOMContentLoaded', initFeedAndPresence);
+    document.addEventListener('DOMContentLoaded', connectFeedAndPresence);
     </script>
 </th:block>
 
