@@ -16,6 +16,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import jakarta.servlet.http.HttpServletRequest;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.Map;
+import java.util.HashMap;
+
 import java.security.Principal;
 
 @Controller
@@ -27,6 +31,8 @@ public class FileController {
     private DocumentRepository documentRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<?> downloadFile(@PathVariable String fileName, Principal principal) {
@@ -73,6 +79,17 @@ public class FileController {
         // 3. Tăng lượt tải (nếu muốn)
         doc.setDownloads(doc.getDownloads() + 1);
         documentRepository.save(doc);
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("type", "DOCUMENT_STATS");
+            payload.put("documentId", doc.getId());
+            payload.put("views", doc.getViews());
+            payload.put("downloads", doc.getDownloads());
+            messagingTemplate.convertAndSend("/topic/documents/stats", payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         // 4. Tải file từ ổ cứng
         Resource resource = storageService.loadFileAsResource(fileName);

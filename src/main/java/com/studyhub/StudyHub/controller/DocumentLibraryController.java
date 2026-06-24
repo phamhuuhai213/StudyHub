@@ -3,14 +3,18 @@ package com.studyhub.StudyHub.controller;
 import com.studyhub.StudyHub.entity.Category;
 import com.studyhub.StudyHub.entity.Document;
 import com.studyhub.StudyHub.repository.CategoryRepository;
+import com.studyhub.StudyHub.repository.DocumentRepository;
 import com.studyhub.StudyHub.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Controller
 public class DocumentLibraryController {
@@ -20,6 +24,12 @@ public class DocumentLibraryController {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private DocumentRepository documentRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @GetMapping("/documents")
     public String showDocumentLibrary(
@@ -48,5 +58,30 @@ public class DocumentLibraryController {
         model.addAttribute("pageTitle", "Kho tài liệu");
 
         return "documents";
+    }
+
+    @PostMapping("/api/documents/{id}/view")
+    @ResponseBody
+    public ResponseEntity<?> incrementView(@PathVariable Long id) {
+        Document doc = documentService.getDocumentById(id);
+        if (doc != null) {
+            doc.setViews(doc.getViews() + 1);
+            documentRepository.save(doc);
+
+            // Broadcast qua WebSocket để tất cả Client đang xem cập nhật realtime số lượt xem/tải
+            try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("type", "DOCUMENT_STATS");
+                payload.put("documentId", id);
+                payload.put("views", doc.getViews());
+                payload.put("downloads", doc.getDownloads());
+                messagingTemplate.convertAndSend("/topic/documents/stats", payload);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return ResponseEntity.ok(Map.of("success", true, "views", doc.getViews()));
+        }
+        return ResponseEntity.notFound().build();
     }
 }

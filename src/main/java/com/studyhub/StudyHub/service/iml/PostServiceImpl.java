@@ -133,6 +133,31 @@ public class PostServiceImpl implements PostService {
                     docMap.put("storagePath", doc.getStoragePath());
                     docMap.put("description", doc.getDescription());
                     docsList.add(docMap);
+
+                    // Broadcast riêng sang topic documents để trang kho tài liệu cập nhật realtime
+                    try {
+                        Map<String, Object> docPayload = new java.util.HashMap<>();
+                        docPayload.put("id", doc.getId());
+                        docPayload.put("title", doc.getTitle() != null ? doc.getTitle() : doc.getFileName());
+                        docPayload.put("fileName", doc.getFileName());
+                        docPayload.put("storagePath", doc.getStoragePath());
+                        docPayload.put("description", doc.getDescription());
+                        docPayload.put("fileSize", doc.getFileSize());
+                        docPayload.put("fileType", doc.getFileType());
+                        docPayload.put("views", doc.getViews());
+                        docPayload.put("downloads", doc.getDownloads());
+                        docPayload.put("authorName", user.getName());
+                        docPayload.put("authorUsername", user.getUsername());
+                        docPayload.put("authorAvatar", user.getAvatarUrl());
+                        if (doc.getCategory() != null) {
+                            docPayload.put("categoryId", doc.getCategory().getId());
+                            docPayload.put("categoryName", doc.getCategory().getName());
+                            docPayload.put("categoryIcon", doc.getCategory().getIcon());
+                        }
+                        messagingTemplate.convertAndSend("/topic/documents", docPayload);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
                 }
             }
             broadcastData.put("documents", docsList);

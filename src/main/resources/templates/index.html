@@ -143,8 +143,8 @@
                                                 th:data-path="${doc.storagePath}"
                                                 th:data-name="${doc.fileName}"
                                                 th:data-title="${doc.title}"
-                                                onclick="previewFile(this)">👁️ Xem</button>
-                                         <a th:href="@{/download/{fileName}(fileName=${doc.storagePath})}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải</a>
+                                                onclick="previewFile(this)">👁️ Xem <span class="ms-1 badge bg-secondary doc-views" th:id="'doc-views-' + ${doc.id}" th:text="${doc.views}">0</span></button>
+                                         <a th:href="@{/download/{fileName}(fileName=${doc.storagePath})}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải <span class="ms-1 badge bg-light text-success doc-downloads" th:id="'doc-downloads-' + ${doc.id}" th:text="${doc.downloads}">0</span></a>
                                     </div>
                                 </div>
                                 <p class="mb-1" th:if="${doc.description != post.content}" th:text="${doc.description}"></p>
@@ -328,6 +328,20 @@
         }
         currentDocId = docId;
 
+        // Trigger increment view count API!
+        if (docId) {
+            const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+            const headers = {};
+            if (token && header) {
+                headers[header] = token;
+            }
+            fetch(`/api/documents/${docId}/view`, {
+                method: 'POST',
+                headers: headers
+            }).catch(err => console.error("Lỗi tăng view:", err));
+        }
+
         const modalEl = document.getElementById('previewModal');
         let modal = bootstrap.Modal.getInstance(modalEl);
         if (!modal) {
@@ -451,6 +465,15 @@
                 const data = JSON.parse(payload.body); // { postId: 123, likesCount: 5, userIds: [1, 2] }
                 updateLikesUI(data.postId, data.likesCount, data.userIds);
             });
+
+            // 5. Lắng nghe cập nhật lượt xem/tải của tài liệu
+            stompClientFeed.subscribe('/topic/documents/stats', function (payload) {
+                const data = JSON.parse(payload.body);
+                const viewSpans = document.querySelectorAll('#doc-views-' + data.documentId);
+                viewSpans.forEach(span => span.textContent = data.views);
+                const downloadSpans = document.querySelectorAll('#doc-downloads-' + data.documentId);
+                downloadSpans.forEach(span => span.textContent = data.downloads);
+            });
         });
     }
 
@@ -508,8 +531,8 @@
                                         data-path="${doc.storagePath}"
                                         data-name="${doc.fileName}"
                                         data-title="${doc.title}"
-                                        onclick="previewFile(this)">👁️ Xem</button>
-                                 <a href="/download/${doc.storagePath}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải</a>
+                                        onclick="previewFile(this)">👁️ Xem <span class="ms-1 badge bg-secondary doc-views" id="doc-views-${doc.id}">${doc.views || 0}</span></button>
+                                 <a href="/download/${doc.storagePath}" class="btn btn-sm btn-download-green rounded-pill px-3 ms-1 flex-shrink-0" style="display: inline-flex; align-items: center;">⬇ Tải <span class="ms-1 badge bg-light text-success doc-downloads" id="doc-downloads-${doc.id}">${doc.downloads || 0}</span></a>
                             </div>
                         </div>
                         <p class="mb-1">${doc.description || ''}</p>

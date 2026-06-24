@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 import java.security.Principal;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Controller
 public class PostController {
@@ -60,26 +61,29 @@ public class PostController {
     }
 
     @PostMapping("/posts/{postId}/like")
-    public String handleLike(@PathVariable("postId") Long postId, Principal principal) {
+    public String handleLike(@PathVariable("postId") Long postId, Principal principal, HttpServletRequest request) {
         if (principal == null) {
             return "redirect:/login";
         }
 
         postService.toggleLike(postId, principal);
-        return "redirect:/";
+        String referer = request.getHeader("Referer");
+        return "redirect:" + (referer != null ? referer : "/");
     }
 
     @PostMapping("/posts/{postId}/comment")
     public String handleComment(@PathVariable("postId") Long postId,
                                 @ModelAttribute("commentDto") CommentDto commentDto,
                                 Principal principal,
+                                HttpServletRequest request,
                                 RedirectAttributes redirectAttributes) {
         if (principal == null) {
             return "redirect:/login";
         }
 
         postService.addComment(postId, commentDto, principal);
-        return "redirect:/";
+        String referer = request.getHeader("Referer");
+        return "redirect:" + (referer != null ? referer : "/");
     }
 
 

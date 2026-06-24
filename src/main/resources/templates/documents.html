@@ -67,6 +67,13 @@
             font-style: italic;
             margin: 1rem 0;
         }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -151,13 +158,13 @@
                                 th:data-title="${doc.title}"
                                 onclick="previewFile(this)"
                                 title="Xem trước">
-                            👁️ Xem
+                            👁️ Xem <span class="ms-1 badge bg-secondary doc-views" th:id="'doc-views-' + ${doc.id}" th:text="${doc.views}">0</span>
                         </button>
                         <a th:href="@{/download/{fileName}(fileName=${doc.storagePath})}"
                            class="btn btn-sm btn-download-green rounded-pill px-3"
                            style="display: inline-flex; align-items: center;"
                            onclick="event.stopPropagation();">
-                            ⬇ Tải <span class="ms-1" th:text="${doc.downloads}">0</span>
+                            ⬇ Tải <span class="ms-1 badge bg-light text-success doc-downloads" th:id="'doc-downloads-' + ${doc.id}" th:text="${doc.downloads}">0</span>
                         </a>
                     </div>
                 </div>
@@ -249,6 +256,20 @@
                 displayTitle = title;
             }
             currentDocId = docId;
+
+            // Trigger increment view count API!
+            if (docId) {
+                const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+                const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+                const headers = {};
+                if (token && header) {
+                    headers[header] = token;
+                }
+                fetch(`/api/documents/${docId}/view`, {
+                    method: 'POST',
+                    headers: headers
+                }).catch(err => console.error("Lỗi tăng view:", err));
+            }
 
             const modalEl = document.getElementById('previewModal');
             let modal = bootstrap.Modal.getInstance(modalEl);
@@ -349,6 +370,113 @@
                 aiBtn.disabled = false;
             }
         }
+
+        // --- REALTIME WEB SOCKET FOR NEW DOCUMENTS AND STATS ---
+        let stompClientDocs = null;
+        function connectDocumentsWS() {
+            const socket = new SockJS('/ws');
+            stompClientDocs = Stomp.over(socket);
+            stompClientDocs.debug = null;
+            stompClientDocs.connect({}, function (frame) {
+                console.log("Connected to Documents WebSocket");
+                stompClientDocs.subscribe('/topic/documents', function (payload) {
+                    const doc = JSON.parse(payload.body);
+                    prependNewDocument(doc);
+                });
+                stompClientDocs.subscribe('/topic/documents/stats', function (payload) {
+                    const data = JSON.parse(payload.body);
+                    const viewSpans = document.querySelectorAll('#doc-views-' + data.documentId);
+                    viewSpans.forEach(span => span.textContent = data.views);
+                    const downloadSpans = document.querySelectorAll('#doc-downloads-' + data.documentId);
+                    downloadSpans.forEach(span => span.textContent = data.downloads);
+                });
+            });
+        }
+
+        function prependNewDocument(doc) {
+            let grid = document.querySelector('.documents-grid');
+            if (!grid) {
+                const empty = document.querySelector('.empty-state');
+                if (empty) empty.remove();
+                
+                const filterSec = document.querySelector('.category-filter');
+                grid = document.createElement('div');
+                grid.className = 'documents-grid';
+                filterSec.parentNode.insertBefore(grid, filterSec.nextSibling);
+            }
+
+            if (document.querySelector(`[data-id="${doc.id}"]`)) return;
+
+            let fileIcon = '📁';
+            const type = doc.fileType ? doc.fileType.toLowerCase() : '';
+            if (type.includes('pdf')) fileIcon = '📕';
+            else if (type.includes('word') || type.includes('officedocument')) fileIcon = '📝';
+            else if (type.includes('sheet') || type.includes('excel')) fileIcon = '📊';
+            else if (type.includes('presentation')) fileIcon = '📽️';
+            else if (type.includes('image')) fileIcon = '🖼️';
+
+            const ext = doc.fileName ? doc.fileName.split('.').pop().toUpperCase() : 'FILE';
+
+            const authorInitial = doc.authorName ? doc.authorName.charAt(0).toUpperCase() : '?';
+            const authorAvatarHtml = doc.authorAvatar 
+                ? `<img src="/view-file/${doc.authorAvatar}" alt="Avatar">`
+                : `<span class="default-avatar">${authorInitial}</span>`;
+
+            const docCard = `
+                <div class="document-card animate-fade-in">
+                    <div class="document-thumbnail"
+                         data-id="${doc.id}"
+                         data-path="${doc.storagePath}"
+                         data-name="${doc.fileName}"
+                         data-title="${doc.title}"
+                         onclick="previewFile(this)"
+                         style="cursor: pointer;">
+                        <div class="file-icon">
+                            <span>${fileIcon}</span>
+                        </div>
+                        <div class="file-type-badge">${ext}</div>
+                    </div>
+
+                    <div class="document-info">
+                        <div class="document-title">${doc.title || doc.fileName}</div>
+                        <div class="document-description">${doc.description || 'Không có mô tả.'}</div>
+
+                        <div class="document-meta pt-2 mt-2 d-flex align-items-center justify-content-between border-top">
+                            <div class="document-author">
+                                <div class="author-avatar" style="width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; background:#e2e8f0; font-size:11px;">
+                                    ${authorAvatarHtml}
+                                </div>
+                                <span class="ms-1" style="font-size:0.85rem;">${doc.authorName || 'Unknown'}</span>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button"
+                                        class="btn-preview border-0"
+                                        data-id="${doc.id}"
+                                        data-path="${doc.storagePath}"
+                                        data-name="${doc.fileName}"
+                                        data-title="${doc.title}"
+                                        onclick="previewFile(this)"
+                                        title="Xem trước">
+                                    👁️ Xem <span class="ms-1 badge bg-secondary doc-views" id="doc-views-${doc.id}">0</span>
+                                </button>
+                                <a href="/download/${doc.storagePath}"
+                                   class="btn btn-sm btn-download-green rounded-pill px-3"
+                                   style="display: inline-flex; align-items: center;"
+                                   onclick="event.stopPropagation();">
+                                    ⬇ Tải <span class="ms-1 badge bg-light text-success doc-downloads" id="doc-downloads-${doc.id}">0</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.insertAdjacentHTML('afterbegin', docCard);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            connectDocumentsWS();
+        });
     </script>
 
 </div>
